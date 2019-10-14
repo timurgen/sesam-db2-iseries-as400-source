@@ -43,18 +43,23 @@ public class DB2Controller {
         }
 
         response.setContentType("application/json");
+        response.setCharacterEncoding("utf-8");
         PrintWriter writer = response.getWriter();
         writer.print('[');
         boolean isFirst = true;
 
         while (tableObj.next()) {
             List<Map<String, Object>> batch = tableObj.nextBatch();
-            if (isFirst) {
-                isFirst = false;
-            } else {
-                writer.print(',');
+            if (batch.isEmpty()) {
+                LOG.warn("empty batch, break fetching");
+                break;
             }
             for (var item : batch) {
+                if (!isFirst) {
+                    writer.print(',');
+                } else {
+                    isFirst = false;
+                }
                 rowCounter++;
                 writer.print(MAPPER.writeValueAsString(item));
             }
@@ -67,6 +72,6 @@ public class DB2Controller {
         } catch (SQLException ex) {
             LOG.error("couldn't close DB connection due to", ex);
         }
-        LOG.info("sucessfully processed {} rows",rowCounter);
+        LOG.info("sucessfully processed {} rows", rowCounter);
     }
 }
