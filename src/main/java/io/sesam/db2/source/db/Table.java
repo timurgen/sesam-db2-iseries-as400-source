@@ -17,7 +17,7 @@ import java.util.Map;
  */
 public class Table implements AutoCloseable {
 
-    private static final int BATCH_SIZE = 1_000;
+    private static final int BATCH_SIZE = 100_000;
 
     private final Connection conn;
     private final String stmtStr;
