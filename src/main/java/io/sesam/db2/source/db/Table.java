@@ -2,6 +2,9 @@ package io.sesam.db2.source.db;
 
 import com.ibm.as400.access.AS400JDBCResultSet;
 import com.ibm.as400.access.AS400JDBCResultSetMetaData;
+import io.sesam.db2.source.controller.DB2Controller;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.sql.Connection;
 import java.sql.PreparedStatement;
@@ -13,6 +16,8 @@ import java.util.*;
  * @author Timur Samkharadze
  */
 public class Table implements AutoCloseable {
+    private static final Logger LOG = LoggerFactory.getLogger(Table.class);
+    public static final String COLUMN_NAME_REGEX = "^[a-zA-Z_][a-zA-Z0-9_]*$";
 
     private static final int BATCH_SIZE = Integer.parseInt(
             Optional.ofNullable(
@@ -27,15 +32,48 @@ public class Table implements AutoCloseable {
     private int lastBatchSize;
     private AS400JDBCResultSetMetaData metaData;
 
+    private List<String> takeColumns;
+    private String sinceColumn;
+    private String sinceValue;
+
     protected Table(String tableName, Connection conn) {
 
         this.conn = conn;
 
-        this.stmtStr = String.format("SELECT * FROM %s LIMIT %s OFFSET ?", tableName.strip(), Table.BATCH_SIZE);
+        this.stmtStr = String.format(
+                "SELECT {columns} FROM %s {where} LIMIT %s OFFSET ?", tableName.strip(), Table.BATCH_SIZE
+        );
 
         this.offset = 0;
         this.lastBatchSize = Table.BATCH_SIZE;
     }
+
+    public Table takeOnly(String[] takeColumns) {
+        if (null != this.takeColumns) {
+            throw new IllegalStateException("method takeOnly already called for this object");
+        }
+
+        this.takeColumns = new ArrayList<>(takeColumns.length);
+
+        for (String column : takeColumns) {
+            if (!column.matches(COLUMN_NAME_REGEX) && !"*".equals(column)) {
+                throw new IllegalArgumentException(String.format("column name %s is not allowed", column));
+            }
+            this.takeColumns.add(column);
+        }
+        return this;
+    }
+
+    public Table withSince(String columnName, String sinceValue) {
+        if (null != columnName && !columnName.matches(COLUMN_NAME_REGEX)) {
+            throw new IllegalArgumentException(String.format("column name %s is not allowed", columnName));
+        }
+
+        this.sinceColumn = columnName;
+        this.sinceValue = sinceValue;
+        return this;
+    }
+
 
     public boolean next() {
         return !(this.lastBatchSize < Table.BATCH_SIZE);
@@ -67,8 +105,16 @@ public class Table implements AutoCloseable {
     }
 
     private void prepareStatement() {
+        String columns = Optional.of(String.join(", ", this.takeColumns)).orElse("*");
+        String whereClause = "";
+        if (null != this.sinceColumn && null != this.sinceValue && !this.sinceColumn.isEmpty() && !this.sinceValue.isEmpty()) {
+            LOG.info("since value {} found and will be used for column {}", this.sinceValue, this.sinceColumn);
+            whereClause = String.format("WHERE %s >= %s", this.sinceColumn, this.sinceValue);
+        }
         try {
-            this.pStmt = this.conn.prepareStatement(this.stmtStr);
+            this.pStmt = this.conn.prepareStatement(
+                    this.stmtStr.replace("{columns}", columns).replace("{where}", whereClause)
+            );
         } catch (SQLException ex) {
             throw new RuntimeException("couldn't prepare statement due to", ex);
         }
@@ -127,6 +173,10 @@ public class Table implements AutoCloseable {
                                 String type = this.metaData.getColumnTypeName(i);
                                 throw new RuntimeException(String.format("data type %s is not supported", type));
 
+                        }
+
+                        if (colLabel.equals(this.sinceColumn)) {
+                            item.put("_updated", resultSet.getObject(colLabel));
                         }
                     }
                     resultList.add(item);
