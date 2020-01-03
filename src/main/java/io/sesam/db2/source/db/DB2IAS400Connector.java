@@ -15,6 +15,7 @@ public class DB2IAS400Connector {
 
     private static final String URL_TEMPLATE = "jdbc:as400://%s;libraries=%s;user=%s;password=%s";
     private static final String DRIVER_CLASS = "com.ibm.as400.access.AS400JDBCDriver";
+    private static final String TABLE_NAME_REGEX = "^[\\p{L}_][\\p{L}\\p{N}@$#_]{0,127}$";
 
     private final String host;
     private final String dbName;
@@ -47,12 +48,12 @@ public class DB2IAS400Connector {
      * Method to obtain service object for DB table with given name
      *
      * @param tableName name of DB table
-     * @return tbale object
+     * @return table object
      * @throws ClassNotFoundException if DB2 iSeries AS400 driver not found (AS400JDBCDriver)
      * @throws SQLException if any SQL exception occurs during connection
      */
     public Table fetchTable(String tableName) throws ClassNotFoundException, SQLException {
-        if (tableName.matches("%[^_A-Z0-9@$#]%")) {
+        if (!tableName.matches(TABLE_NAME_REGEX)) {
             throw new IllegalArgumentException(String.format("bad table name %s", tableName));
         }
         return new Table(tableName, this.connect());
