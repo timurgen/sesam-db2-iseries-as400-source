@@ -2,22 +2,22 @@ package io.sesam.db2.source.db;
 
 import com.ibm.as400.access.AS400JDBCResultSet;
 import com.ibm.as400.access.AS400JDBCResultSetMetaData;
+
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 
 /**
- *
  * @author Timur Samkharadze
  */
 public class Table implements AutoCloseable {
 
-    private static final int BATCH_SIZE = 100_000;
+    private static final int BATCH_SIZE = Integer.parseInt(
+            Optional.ofNullable(
+                    System.getenv("DB2_BATCH_SIZE")
+            ).orElse("100000"));
 
     private final Connection conn;
     private final String stmtStr;
@@ -27,7 +27,7 @@ public class Table implements AutoCloseable {
     private int lastBatchSize;
     private AS400JDBCResultSetMetaData metaData;
 
-    protected Table(String tableName, Connection conn) throws SQLException {
+    protected Table(String tableName, Connection conn) {
 
         this.conn = conn;
 
@@ -44,7 +44,7 @@ public class Table implements AutoCloseable {
     /**
      * Method to fetch next batch of data from current table
      *
-     * @return
+     * @return next batch of data
      */
     public List<Map<String, Object>> nextBatch() {
         if (null == this.pStmt) {
@@ -147,5 +147,5 @@ public class Table implements AutoCloseable {
     public void close() throws SQLException {
         this.conn.close();
     }
-    
+
 }
