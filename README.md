@@ -8,6 +8,7 @@ this service works on port 8080 and has one endpoint GET `/datasets/<TABLE NAME>
 * **DB2_DBNAME** - database name 
 * **DB2_USERNAME** - username
 * **DB2_PASSWORD** - password
+* **DB2_BATCH_SIZE** - how many rows fetches before data is written back to Sesam default 100000
 
 ### System setup 
 ```json
