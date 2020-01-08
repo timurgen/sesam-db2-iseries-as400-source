@@ -38,7 +38,8 @@ this service works on port 8080 and has one endpoint GET `/datasets/<TABLE NAME>
   "source": {
     "type": "json",
     "system": "db2-test",
-    "url": "/datasets/<TABLE NAME>/entities"
+    "supports_since": true,
+    "url": "/datasets/<TABLE NAME>/entities?takeOnly=<columns to fetch, all if ommited>&sinceColumn=<column with last updated ts>""
   },
   "transform": {
     "type": "dtl",
